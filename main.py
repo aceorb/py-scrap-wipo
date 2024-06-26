@@ -11,11 +11,15 @@ from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.support.ui import Select
 
-START_PAGE = 601
+START_PAGE = 4558
 LIMIT = 20000
 WIPO_URL = "https://www3.wipo.int/madrid/monitor/en/"
 DOWNLOAD_DIR = "downloads"
 PROXY = "54.166.160.180:80"
+RETRY_COUNT = 3
+
+
+cur_page_index = 1
 
 def wait_until_images_loaded(driver, timeout=60):
     """Waits for all images & background images to load."""
@@ -70,6 +74,7 @@ def wait_until_images_loaded(driver, timeout=60):
     '''))
 
 def scrap_wipo(start_page, limit):
+    global cur_page_index
     # load first page
     dir_path = os.path.dirname(os.path.realpath(__file__))
     options = Options()
@@ -116,6 +121,7 @@ def scrap_wipo(start_page, limit):
 
     page_num = start_page
     while page_num < start_page + limit and page_num <= total_pagecount:
+        cur_page_index = page_num
         # set page number
         page_input = wait.until(EC.element_to_be_clickable((By.XPATH, "//input[@id='skipValue1']")))
         page_input.clear()
@@ -134,13 +140,26 @@ def scrap_wipo(start_page, limit):
         a_download_html = wait.until(EC.element_to_be_clickable((By.XPATH, "//a[@id='download_link_html']")))
         a_download_html.click()
         print(page_num, 'done')
-
         page_num += 1
-
-    while True:
-        pass
-
     driver.close()
 
 if __name__ == '__main__':
-    scrap_wipo(START_PAGE, LIMIT)
+    cur_page_index = START_PAGE
+
+    repeat_index = 0
+    while True:
+
+
+        try:
+            old_page_index = cur_page_index
+            scrap_wipo(cur_page_index, LIMIT)
+        except Exception as e:
+            print(f'{cur_page_index} except{str(e)}')
+
+        if old_page_index == cur_page_index:
+            repeat_index += 1
+        else:
+            repeat_index = 0
+        if repeat_index > RETRY_COUNT:
+            break
+    print('all done')
